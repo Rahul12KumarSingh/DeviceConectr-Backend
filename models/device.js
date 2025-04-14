@@ -5,14 +5,10 @@ const deviceSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    devicename: {
+    deviceName: {
         type: String,
         required: true
     },
-    deviceImg: {
-        type: String,
-        required: false
-    }
 });
 
 const Device = mongoose.model('Device', deviceSchema);

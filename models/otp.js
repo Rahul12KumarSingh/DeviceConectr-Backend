@@ -6,10 +6,9 @@ const otpSchema = new mongoose.Schema({
         required: true
     },
     otp: {
-        type: Number,
+        type: String,
         required: true
     }
-
 }) ;
 
 const Otp = mongoose.model('Otp' , otpSchema) ;

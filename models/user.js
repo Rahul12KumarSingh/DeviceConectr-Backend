@@ -9,27 +9,29 @@ const mongoose = require('mongoose');
 
 
 const userSchema = new mongoose.Schema({
-    firstName: {
+    firstName : {
         type: String,
         required: true
     },
-    lastName: {
+    lastName : {
         type: String,
+        required: false ,
     },
-    email: {
+    email : {
         type: String,
         required: true
     },
-    profilePic: {
-        type: String
-    },
+    mobileNumber : {
+        type: String,
+        required: true
+    } ,
     devices: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Device'
     }],
-    CorrespondingCode: {
+    controllerCode: {
         type: String,
-        required: true
+        required: false
     }
 });
 

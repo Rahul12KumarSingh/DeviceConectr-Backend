@@ -7,16 +7,23 @@ const mongoose = require('mongoose');
 
 
 const deviceDataSchema = new mongoose.Schema({
-       
-    deviceId :{
+    deviceId: {
               type : mongoose.Schema.Types.ObjectId ,
               ref : 'Device'
        } ,
-
-      data: {
-            type : Object ,
-            required : true
-         }
+      data: [
+        {
+            type: String,
+            required: true
+        }
+      ] ,
+      status : {
+        type : Boolean ,
+        default : false
+      }
+}
+, {
+    timestamps: true
 });
 
 const DeviceData = mongoose.model('DeviceData' , deviceDataSchema) ;

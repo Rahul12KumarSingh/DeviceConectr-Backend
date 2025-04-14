@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "publisher.js",
   "scripts": {
+    "start": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -10,6 +11,9 @@
   "description": "",
   "dependencies": {
     "@google-cloud/pubsub": "^4.10.0",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "mongoose": "^8.13.2",
+    "nodemailer": "^6.10.1",
+    "otp-generator": "^4.0.1"
   }
 }
