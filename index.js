@@ -51,7 +51,7 @@ const { awsIotCoreConnect } = require('./utils/awsIoTCoreConnect');
 
 
 connectDb(); //Connect to the database
-awsIotCoreConnect() ; //Connect to the AWS IoT Core
+// awsIotCoreConnect() ; //Connect to the AWS IoT Core
 
 const PORT = process.env.PORT || 8080 ;
 app.use(cors()) ;
@@ -73,7 +73,7 @@ app.get('/', (req, res) => {
     res.send("Welcome to the server") ;
 })
 
-app.listen(4000, ()=>{
+app.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`);
 })
 
