@@ -1,231 +1,295 @@
+const Device = require('../models/device');
+const User = require('../models/user');
+const { generateControllerCode } = require('../utils/microController');
 
+// add Device Controller....
+const addDeviceController = async (req, res) => {
+    const { deviceName, deviceType } = req.body;
+    const email = req.user.email;
 
-
-
- const addDevice = async (req, res) => {
-    const {deviceName , deviceType } = req.body ;
-    const user = req.user ;
+    console.log("user email : ", email);
 
     try {
-        if(!deviceName || !deviceType){
+        if (!deviceName || !deviceType) {
             return res.status(400).json({
                 success: false,
                 message: "Please provide all the required fields"
             });
         }
-
         //creating the device....
         const device = await Device.create({
-            deviceName,
-            deviceType,
-            userId: user._id
+            type: deviceType,
+            deviceName: deviceName
+            // userId: user._id
         });
 
+        console.log("device : ", device);
+
         //pushing the device to the user devices array....
-        await User.findByIdAndUpdate(user._id , {
+        await User.updateOne({ email }, {
             $push: {
                 devices: device._id
             }
         });
 
-        res.status(200).json({
+        // createTopicAndAddCloudFunction(deviceName._id);
+
+        return res.status(200).json({
             success: true,
             message: "Device added successfully",
-            device
-        });       
-    } catch (error) {
-
-    }
-};
-
-
-const createTopicAndAddCloudFunction = async () => {
-    try {
-        const [topic] = await pubsub.createTOpic(topicName);
-        const subscriptionName = `${topicName}-subscription`;
-        const pushEndpoint = `https://iotdataprocessing-930066634417.us-central1.run.app`;
-
-
-        //linking the topic to the cloud fucntion...
-        const [subscription] = await topic.createSubscription(subscriptionName, {
-            pushConfig: { pushEndpoint }
+            device: device
         });
-
     } catch (error) {
-
+        return res.status(500).json({
+            success: false,
+            message: "Error while adding the device",
+            error: error.message
+        });
     }
 };
 
+
+//get controller code....
 const getControllerCode = async (req, res) => {
-    //it will create the  topic corresponding to each device.....
-    const { email} = req.body;
+    const email = req.user.email;
 
     try {
-        //find the all the devices corresponding to that user...
-        const data = await User.findAll({ email }).populate('devices');
+        //const controllerCode = generateControllerCode(email)
+        const controllerCode = `#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
+#include <WiFiManager.h>
+#include <DHT.h>
 
-        console.log("data : ", data);
+// MQTT Config
+const char* mqtt_server = "a2f276cdb18d48f284666da86175b258.s1.eu.hivemq.cloud";
+const int mqtt_port = 8883;
+const char* mqtt_user = "DeviceConectr";
+const char* mqtt_password = "Kasia@1234";
 
-        data.devices.map((deviceInfo) => {
-            //create a topic for each device....
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
 
-            const topicName = `abc${email}/${deviceInfo.deviceName}`;
+// DHT22 Config
+#define DHTPIN 4          
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
 
-            //creating the topic if not exists....
-            createTopicAndAddCloudFunction(topicName);
-        });
+// Relay Pins
+#define BULB_PIN 19
+#define FAN_PIN 21
 
+unsigned long lastTempPublishTime = 0;
+const unsigned long publishInterval = 1000;  // 10 seconds
 
-        const controllerCode = `
-          #include<Wifi.h>
-          #include<HTTPClient.h>
-          #include<ArduinoJson.h>
+void callback(char* topic, byte* payload, unsigned int length) {
+  payload[length] = '\0';  // Null-terminate payload
+  String msg = String((char*)payload);
+  
+  Serial.print("📨 Message received on topic: ");
+  Serial.println(topic);
+  Serial.print("Payload: ");
+  Serial.println(msg);
 
-          //wifi setup....
-          const char* ssid = "" ;
-          const char* wifi_password = "" ;
+  if (String(topic) == "bulb") {
+    if (msg == "true") {
+      digitalWrite(BULB_PIN, HIGH);
+      Serial.println("💡 Bulb ON");
+    } else {
+      digitalWrite(BULB_PIN, LOW);
+      Serial.println("💡 Bulb OFF");
+    }
+  }
 
-          //google cloud setup...
-          const char* project_id = "rock-web-453711-d5";
-          const subscriptionName = ${email}-subscription ;
+  if (String(topic) == "fan") {
+    if (msg == "on") {
+      digitalWrite(FAN_PIN, HIGH);
+      Serial.println("🌀 Fan ON");
+    } else {
+      digitalWrite(FAN_PIN, LOW);
+      Serial.println("🌀 Fan OFF");
+    }
+  }
+}
 
-          const char* token_url = ""
+void setup_wifi() {
+  WiFiManager wifiManager;
+  wifiManager.autoConnect("ESP32_AP_Config");
+  Serial.println("✅ WiFi connected");
+  Serial.println("IP: " + WiFi.localIP().toString());
+}
 
-          // pub/sub base url....
-          String pubsub_pull_base_url = "https://pubsub.googleapis.com/v1/projects/" + project_id + "/subscriptions/";
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("🔁 Attempting MQTT connection...");
+    if (client.connect("rahulesp32323", mqtt_user, mqtt_password)) {
+      Serial.println("✅ Connected");
 
-          String pubsub_publish_base_url = "https://pubsub.googleapis.com/v1/projects/" + project_id + "/topics/"; 
+      client.subscribe("bulb");
+      client.subscribe("fan");
+    } else {
+      Serial.print("❌ Failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" retrying in 5 seconds...");
+      delay(5000);
+    }
+  }
+}
 
-          //dynamic map the gpio pins to the device name....
-          const int *deviceMap = {
-            ${data.devices.map((deviceInfo) => {
-            `
-                if(deviceInfo.type == 1)        
-                    return ${deviceInfo.deviceName}    
-              `})
-            }
-           };
+void setup() {
+  Serial.begin(115200);
 
-           void setup_wifi(){
-                Serial.print("connecting to wifi....") ;
-                WiFi.begin(ssid , wifi_password) ;
+  // Initialize relay pins
+  pinMode(BULB_PIN, OUTPUT);
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(BULB_PIN, LOW);
+  digitalWrite(FAN_PIN, LOW);
 
-                while(WiFi.status() != WL_CONNECTED){
-                    delay(1000);
-                    Serial.print(".") ;
-                }
-           }
+  dht.begin();
+  setup_wifi();
 
-            void fetchMessages(){
-                //cheking for token expiration...
-                if(millis() > tokenExpiryTime){
-                    getAccessToken() ;
-                }
+  espClient.setInsecure();  // Skip certificate validation
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+}
 
-          
-                for(int i = 0 ; i < topicList1.length ; i++){
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
 
-                const subscriptionName = ${topicList1[i]}-ControllerSubscription ;
+  client.loop();
 
-                HTTPClient http ;
-               
-                http.begin(pubsub_pull_base_url + subscriptionName + ":pull") ;
+  // Periodically read temperature and publish
+  unsigned long now = millis();
+  if (now - lastTempPublishTime > publishInterval) {
+    float temp = dht.readTemperature();
 
-                http.addHeader("Authorization" , "Bearer " + accessToken) ;
+    if (!isnan(temp)) {
+      char tempStr[8];
+      dtostrf(temp, 1, 2, tempStr);
+      client.publish("temp", tempStr);
+      Serial.print("🌡️ Temperature Published: ");
+      Serial.println(tempStr);
+    } else {
+      Serial.println("⚠️ Failed to read temperature from DHT sensor");
+    }
 
-                http.addHeader("Content-Type" , "application/json") ;
+    lastTempPublishTime = now;
+  }
+}
+`
 
-                String payload = "{\"maxMessages\": 1}" ;
-                int httpResponseCode = http.POST(payload) ;
-                
-                if(httpResponseCode == 200){
-                    String payload = http.getString() ;
-                    Serial.println("Response : " , payload) ;
+        await User.updateOne({ email }, {
+            controllerCode: controllerCode
+        })
 
-                    //intract with the GPIO pins here based on the messages....
-
-                }else{
-                    Serial.println("Error while fetching the message") ;
-                }
-
-                }
-                
-            }
-
-
-            void publishMessages(){
-                    if(millis() > tokenExpiryTime){
-                       getAccessToken() ;
-                    }
-
-                    HTTPClient http ;
-                    http.begin(pubsub_publish_base_url + topicName + ":publish") ;
-                    http.addHeader("Authorization" , "Bearer " + accessToken) ;
-
-                    http.addHeader("Content-Type" , "application/json") ;
-
-                    String payload = "{\"messages\": [{\"data\""+ data + "\"}]}" ;
-
-                    int httpResponseCode = http.POST(payload) ;
-
-                    if(httpResponseCode == 200){
-                        Serial.println("Message published successfully") ;
-                    }else{
-                        Serial.println("Error while publishing the message") ;
-                    }
-            }
-
-           const topicList1 = [
-            ${data.devices.map((deviceInfo) => {
-                `
-                if(deviceInfo.type == 1)        
-                    return ${email}/${deviceInfo.deviceName}    
-              `})
-            }
-           ];
-
-
-          const topicList2 = [
-            ${data.devices.map((deviceInfo) => {
-                `
-                if(deviceInfo.type == 2)        
-                    return ${email}/${deviceInfo.deviceName}    
-              `})
-            }
-           ];
-                   
-            void setup() {
-                Serial.begin(115200);
-                setup_wifi() ;
-            }
-
-            void loop(){
-               const sensor1Info = random(0, 100) ;
-               publishMessages(sensor1Info , topicList2[0]) ;
-
-               const sensor2Info = random(0, 100) ;
-               publishMessages(sensor2Info , topicList2[1]) ;
-
-               const sensor3Info = random(0, 100) ;
-               publishMessages(sensor3Info , topicList2[2]) ;
-
-               const sensor4Info = random(0, 100) ;
-               publishMessages(sensor4Info , topicList2[3]) ;
-
-               fetchMessages() ;
-            }
-        `;
-
-       res.status(200).json({
+        res.status(200).json({
+            success: true,
             message: "Controller code generated successfully",
             controllerCode: controllerCode
         });
-       
+
     } catch (error) {
         res.json({
+            success: false,
             message: "Error while generating the controller code..",
             error: error.message
         })
     }
 
 };
+
+
+// get device data....
+const getDeviceData = async (req, res) => {
+    const deviceId = req.params.id;
+
+    try {
+        const device = await Device.findById(deviceId)
+        const type = device.type;
+
+        if ((type == 1) || (type == 0)) {
+            return res.status(200).json({
+                success: true,
+                data: device.status
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: device.dataPoints
+        })
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error while fetching the device data",
+        })
+
+    }
+}
+
+//update device data....
+const updateDeviceDataController = async (req, res) => {
+    const deviceId = req.body.deviceId;
+    const { val, dataPoint } = req.body;
+
+    if (!deviceId) {
+        return res.status(400).json({
+            success: false,
+            message: "deviceId is required!!!"
+        })
+    }
+
+    try {
+        if (dataPoint) {
+            await Device.findByIdAndUpdate(deviceId, {
+                $push: {
+                    dataPoints: dataPoint
+                }
+            })
+        }
+        else {
+            await Device.findByIdAndUpdate(deviceId, {
+                status: val
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Device data updated successfully...."
+        })
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            message: "Error while updating the device data....",
+            error: err.message
+        })
+    }
+}
+
+// get all devices controller....
+const getAllDevicesController = async (req, res) => {
+    const email = req.user.email;
+
+    try {
+        const user = await User.findOne({ email }).populate('devices');
+        const devices = user.devices;
+
+        return res.status(200).json({
+            success: true,
+            devices: devices
+        })
+
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            message: "Error while fetching the devices...",
+            error: err.message
+        })
+    }
+}
+
+
+module.exports = { addDeviceController, getControllerCode, updateDeviceDataController, getDeviceData, getAllDevicesController };

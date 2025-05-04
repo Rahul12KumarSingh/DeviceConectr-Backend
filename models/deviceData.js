@@ -17,8 +17,9 @@ const deviceDataSchema = new mongoose.Schema({
             required: true
         }
       ] ,
-      status : {
-        type : Boolean ,
+      val : { 
+        //it is only used for the type 0 and type 1 devices.....
+        type : Number ,
         default : false
       }
 }

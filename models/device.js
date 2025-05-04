@@ -9,6 +9,13 @@ const deviceSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    dataPoints : [{
+        type : Number 
+    }] ,
+    status :{
+        type : Number ,
+        default : 0
+    }
 });
 
 const Device = mongoose.model('Device', deviceSchema);

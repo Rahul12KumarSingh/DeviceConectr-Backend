@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
 
 const sendEmail = async(email , otp) => {
     try {
-        console.log("email info : "  , {email , otp}) ;
+        // console.log("email info : "  , {email , otp}) ;
 
         const info = await transporter.sendMail({
             from: `DeviceContectr <${process.env.EMAIL}>`,

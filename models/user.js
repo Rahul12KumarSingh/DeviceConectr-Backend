@@ -1,13 +1,6 @@
 const mongoose = require('mongoose');
 
 
-// firstName ,
-// lastName ,
-// email ,
-// devices[(objctId)]
-// Espcode (string)
-
-
 const userSchema = new mongoose.Schema({
     firstName : {
         type: String,
@@ -29,7 +22,7 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Device'
     }],
-    controllerCode: {
+    controllerCode : {
         type: String,
         required: false
     }
